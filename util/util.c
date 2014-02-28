@@ -198,6 +198,7 @@ int check_cl_err(cl_int err, const char *msg){
 			fprintf(stderr, "UNRECOGNIZED ERROR\n");
 			break;
 	}
+	fprintf(stderr, "--------\n");
 	return 1;
 }
 
