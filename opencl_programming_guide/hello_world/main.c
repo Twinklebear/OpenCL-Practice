@@ -1,14 +1,20 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <CL/cl.h>
 #include "util.h"
 
 //Select the first available OpenCL platform and make a context on it
 cl_context get_first_platform();
+//Select the first available device and set it and its command queue up
+cl_command_queue get_first_device(cl_context context, cl_device_id *device);
 
 int main(int argc, char **argv){
 	cl_context context = get_first_platform();
-	clReleaseContext(context);
+	cl_device_id device = 0;
+	cl_command_queue queue = get_first_device(context, &device);
 
+	clReleaseCommandQueue(queue);
+	clReleaseContext(context);
 	return 0;
 }
 cl_context get_first_platform(){
@@ -38,5 +44,37 @@ cl_context get_first_platform(){
 		}
 	}
 	return context;
+}
+cl_command_queue get_first_device(cl_context context, cl_device_id *device){
+	size_t num_devices;
+	cl_int err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES,
+		sizeof(num_devices), &num_devices, NULL);
+	if (check_cl_err(err, "Failed to get number of devices")){
+		return NULL;
+	}
+	if (num_devices < 1){
+		fprintf(stderr, "No devices available\n");
+		return NULL;
+	}
+
+	cl_device_id *devices = malloc(sizeof(cl_device_id) * num_devices);
+	err = clGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id) * num_devices,
+		devices, NULL);
+	if (check_cl_err(err, "Failed to get devices for context")){
+		free(devices);
+		return NULL;
+	}
+
+	//Create a command queue on the first device we can and use that device
+	for (size_t i = 0; i < num_devices; ++i){
+		cl_command_queue queue = clCreateCommandQueue(context, devices[i], 0, &err);
+		if (err == CL_SUCCESS){
+			*device = devices[i];
+			free(devices);
+			return queue;
+		}
+	}
+	fprintf(stderr, "Failed to create a command queue for any device\n");
+	return NULL;
 }
 
