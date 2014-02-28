@@ -10,6 +10,13 @@
  */
 char* read_file(const char *f_name, size_t *sz);
 /*
+ * Build an OpenCL program from the source for the context and device
+ * and pass any desired compiler options
+ * returns NULL on failure
+ */
+cl_program build_program(const char *src, cl_context context, cl_device_id device,
+	const char *options);
+/*
  * Check the error code for errors and log it and a message
  * returns 1 if an error was logged
  */

@@ -12,7 +12,11 @@ int main(int argc, char **argv){
 	cl_context context = get_first_platform();
 	cl_device_id device = 0;
 	cl_command_queue queue = get_first_device(context, &device);
+	char *prog_src = read_file("./hello_world.cl", NULL);
+	cl_program program = build_program(prog_src, context, device, NULL);
+	free(prog_src);
 
+	clReleaseProgram(program);
 	clReleaseCommandQueue(queue);
 	clReleaseContext(context);
 	return 0;
@@ -61,6 +65,7 @@ cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 	err = clGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id) * num_devices,
 		devices, NULL);
 	if (check_cl_err(err, "Failed to get devices for context")){
+		clReleaseContext(context);
 		free(devices);
 		return NULL;
 	}
@@ -75,6 +80,8 @@ cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 		}
 	}
 	fprintf(stderr, "Failed to create a command queue for any device\n");
+	clReleaseContext(context);
+	free(devices);
 	return NULL;
 }
 

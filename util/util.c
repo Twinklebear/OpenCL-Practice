@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <CL/cl.h>
+#include "util.h"
 
 char* read_file(const char *f_name, size_t *sz){
 	FILE *fp = fopen(f_name, "rb");
@@ -26,6 +27,28 @@ char* read_file(const char *f_name, size_t *sz){
 	}
 	content[size] = '\0';
 	return content;
+}
+cl_program build_program(const char *src, cl_context context, cl_device_id device,
+	const char *options)
+{
+	cl_int err;
+	cl_program program = clCreateProgramWithSource(context, 1, &src, NULL, &err);
+	if (check_cl_err(err, "Failed to create program from source")){
+		return NULL;
+	}
+	err = clBuildProgram(program, 1, &device, options, NULL, NULL);
+	if (check_cl_err(err, "Failed to build program for device")){
+		size_t sz;
+		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &sz);
+		char *log = malloc(sizeof(char) * sz + 1);
+		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sz, log, NULL);
+		log[sz] = '\0';
+		fprintf(stderr, "BUILD LOG: %s\n", log);
+		free(log);
+		clReleaseProgram(program);
+		return NULL;
+	}
+	return program;
 }
 int check_cl_err(cl_int err, const char *msg){
 	if (err == CL_SUCCESS){
