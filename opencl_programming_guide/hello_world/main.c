@@ -65,7 +65,6 @@ cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 	err = clGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id) * num_devices,
 		devices, NULL);
 	if (check_cl_err(err, "Failed to get devices for context")){
-		clReleaseContext(context);
 		free(devices);
 		return NULL;
 	}
@@ -80,7 +79,6 @@ cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 		}
 	}
 	fprintf(stderr, "Failed to create a command queue for any device\n");
-	clReleaseContext(context);
 	free(devices);
 	return NULL;
 }
