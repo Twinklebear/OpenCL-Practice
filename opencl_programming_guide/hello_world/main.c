@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <CL/cl.h>
 #include "util.h"
+#include "cl_program_dir.h"
 
 //Select the first available OpenCL platform and make a context on it
 cl_context get_first_platform();
@@ -12,7 +13,7 @@ int main(int argc, char **argv){
 	cl_context context = get_first_platform();
 	cl_device_id device = 0;
 	cl_command_queue queue = get_first_device(context, &device);
-	char *prog_src = read_file("./hello_world.cl", NULL);
+	char *prog_src = read_file(CL_PROGRAM("hello_world.cl"), NULL);
 	cl_program program = build_program(prog_src, context, device, NULL);
 	free(prog_src);
 
