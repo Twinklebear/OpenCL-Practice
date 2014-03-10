@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef __APPLE__
+#include <OpenCL/cl.h>
+#else
 #include <CL/cl.h>
+#endif
+
 #include "util.h"
 #include "cl_program_dir.h"
 

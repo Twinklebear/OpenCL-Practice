@@ -1,0 +1,9 @@
+#ifndef CL_PROGRAM_DIR_H
+#define CL_PROGRAM_DIR_H
+
+#define CL_PROGRAM_DIR "@CL_PROGRAM_DIR@"
+//Macro to concatenate kernel dir and kernel name to load properly
+#define CL_PROGRAM(K) (CL_PROGRAM_DIR K)
+
+#endif
+
