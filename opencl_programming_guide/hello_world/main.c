@@ -8,6 +8,8 @@
 
 //Select the first available OpenCL platform and make a context on it
 cl_context get_first_platform();
+//OpenCL callback for reporting errors in the context
+void CL_CALLBACK cl_err_callback(const char *err_info, const void *priv_info, size_t cb, void *user);
 //Select the first available device and set it and its command queue up
 cl_command_queue get_first_device(cl_context context, cl_device_id *device);
 
@@ -96,7 +98,7 @@ cl_context get_first_platform(){
 		CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0
 	};
 	cl_context context = clCreateContextFromType(properties, CL_DEVICE_TYPE_GPU,
-		NULL, NULL, &err);
+		cl_err_callback, NULL, &err);
 	if (check_cl_err(err, "Failed to create GPU context, retrying CPU")){
 		context = clCreateContextFromType(properties, CL_DEVICE_TYPE_CPU,
 			NULL, NULL, &err);
@@ -105,6 +107,9 @@ cl_context get_first_platform(){
 		}
 	}
 	return context;
+}
+void CL_CALLBACK cl_err_callback(const char *err_info, const void *priv_info, size_t cb, void *user){
+	printf("OpenCL context error: %s\n", err_info);
 }
 cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 	size_t num_devices;
