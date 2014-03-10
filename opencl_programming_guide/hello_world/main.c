@@ -4,6 +4,8 @@
 #include "util.h"
 #include "cl_program_dir.h"
 
+#define ARRAY_SIZE 16
+
 //Select the first available OpenCL platform and make a context on it
 cl_context get_first_platform();
 //Select the first available device and set it and its command queue up
@@ -16,7 +18,61 @@ int main(int argc, char **argv){
 	char *prog_src = read_file(CL_PROGRAM("hello_world.cl"), NULL);
 	cl_program program = build_program(prog_src, context, device, NULL);
 	free(prog_src);
+	cl_int err = CL_SUCCESS;
+	cl_kernel kernel = clCreateKernel(program, "hello_world", &err);
+	check_cl_err(err, "failed to create kernel");
 
+	cl_mem mem_objs[3];
+	for (int i = 0; i < 2; ++i){
+		mem_objs[i] = clCreateBuffer(context, CL_MEM_READ_ONLY, ARRAY_SIZE * sizeof(cl_float), NULL, &err);
+		check_cl_err(err, "failed to create buffer");
+	}
+	mem_objs[2] = clCreateBuffer(context, CL_MEM_WRITE_ONLY, ARRAY_SIZE * sizeof(cl_float), NULL, &err);
+	check_cl_err(err, "failed to create buffer");
+
+	cl_float* mem[3];
+	for (int i = 0; i < 3; ++i){
+		mem[i] = clEnqueueMapBuffer(queue, mem_objs[i], CL_FALSE, CL_MAP_WRITE, 0,
+			ARRAY_SIZE * sizeof(cl_float), 0, NULL, NULL, &err);
+		check_cl_err(err, "failed to map buffer");
+	}
+	clFinish(queue);
+	for (int i = 0; i < ARRAY_SIZE; ++i){
+		mem[0][i] = i;
+		mem[1][i] = i;
+		mem[2][i] = 0;
+	}
+	for (int i = 0; i < 3; ++i){
+		err = clEnqueueUnmapMemObject(queue, mem_objs[i], mem[i], 0, NULL, NULL);
+		check_cl_err(err, "failed to unmap mem object");
+	}
+
+	size_t global_size[1] = { ARRAY_SIZE };
+	size_t local_size[1] = { 8 };
+	for (int i = 0; i < 3; ++i){
+		err = clSetKernelArg(kernel, i, sizeof(cl_mem), &mem_objs[i]);
+		check_cl_err(err, "failed to set kernel argument");
+	}
+	err = clSetKernelArg(kernel, 3, sizeof(size_t), &global_size[0]);
+	check_cl_err(err, "failed to set kernel argument");
+
+	err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_size, local_size, 0, NULL, NULL);
+	check_cl_err(err, "failed to enqueue ND range kernel");
+	
+	mem[2] = clEnqueueMapBuffer(queue, mem_objs[2], CL_TRUE, CL_MAP_READ, 0,
+		ARRAY_SIZE * sizeof(cl_float), 0, NULL, NULL, &err);
+	check_cl_err(err, "failed to map result");
+
+	printf("Result: ");
+	for (int i = 0; i < ARRAY_SIZE; ++i){
+		printf("%.2f, ", mem[2][i]);
+	}
+	printf("\n");
+
+	for (int i = 0; i < 3; ++i){
+		clReleaseMemObject(mem_objs[i]);
+	}
+	clReleaseKernel(kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(queue);
 	clReleaseContext(context);
