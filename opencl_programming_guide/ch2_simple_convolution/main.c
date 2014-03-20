@@ -16,13 +16,15 @@
 
 //Select the first available OpenCL platform and make a context on it
 cl_context get_first_platform();
+//Select the first platform with the desired device type
+cl_context get_platform(cl_device_type type);
 //OpenCL callback for reporting errors in the context
 void CL_CALLBACK cl_err_callback(const char *err_info, const void *priv_info, size_t cb, void *user);
 //Select the first available device and set it and its command queue up
 cl_command_queue get_first_device(cl_context context, cl_device_id *device);
 
 int main(int argc, char **argv){
-	cl_context context = get_first_platform();
+	cl_context context = get_platform(CL_DEVICE_TYPE_GPU);
 	cl_device_id device = 0;
 	cl_command_queue queue = get_first_device(context, &device);
 	char *prog_src = read_file(CL_PROGRAM("convolution.cl"), NULL);
@@ -124,6 +126,31 @@ cl_context get_first_platform(){
 	}
 	return context;
 }
+cl_context get_platform(cl_device_type type){
+	cl_uint num_platforms;
+	cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
+	cl_platform_id *platforms = malloc(sizeof(cl_platform_id) * num_platforms);
+	err = clGetPlatformIDs(num_platforms, platforms, NULL);
+	if (check_cl_err(err, "Failed to find platforms") || num_platforms < 1){
+		return NULL;
+	}
+	cl_context_properties properties[] = {
+		CL_CONTEXT_PLATFORM, 0, 0
+	};
+	cl_context context = NULL;
+	for (size_t i = 0; i < num_platforms; ++i){
+		properties[1] = (cl_context_properties)platforms[i];
+		context = clCreateContextFromType(properties, type, cl_err_callback, NULL, &err);
+		if (err == CL_SUCCESS){
+			char name[64];
+			clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 64, name, NULL);
+			printf("Selected platform: %s\n", name);
+			break;
+		}
+	}
+	free(platforms);
+	return context;
+}
 void CL_CALLBACK cl_err_callback(const char *err_info, const void *priv_info, size_t cb, void *user){
 	printf("OpenCL context error: %s\n", err_info);
 	exit(EXIT_FAILURE);
@@ -153,6 +180,9 @@ cl_command_queue get_first_device(cl_context context, cl_device_id *device){
 		cl_command_queue queue = clCreateCommandQueue(context, devices[i], 0, &err);
 		if (err == CL_SUCCESS){
 			*device = devices[i];
+			char name[64];
+			clGetDeviceInfo(*device, CL_DEVICE_NAME, 64, name, NULL);
+			printf("Selected device: %s\n", name);
 			free(devices);
 			return queue;
 		}
