@@ -76,6 +76,7 @@ int main(int argc, char **argv){
 		printf("%.2f, ", mem[2][i]);
 	}
 	printf("\n");
+	clEnqueueUnmapMemObject(queue, mem_objs[2], mem[2], 0, 0, NULL);
 
 	for (int i = 0; i < 3; ++i){
 		clReleaseMemObject(mem_objs[i]);
