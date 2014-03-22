@@ -8,6 +8,7 @@ typedef struct sphere_t {
 	float radius;
 } sphere_t;
 
+//Check the ray for intersection against the sphere, true if intersects
 bool intersect_sphere(ray_t *ray, const global sphere_t *objects);
 
 /*
@@ -25,11 +26,38 @@ kernel void cast_rays(const global float3 *start, const global sphere_t *objects
 	ray_t ray = { .orig = start[id.y * dim.x + id.x], .dir = (float3)(0, 0, 1), .t = FLT_MAX };
 	for (uint i = 0; i < n_objs; ++i){
 		if (intersect_sphere(&ray, &objects[i])){
-			img[id.y * dim.x + id.x] = '@';
+			if (ray.t < 0.5){
+				img[id.y * dim.x + id.x] = '@';
+			}
+			else if (ray.t < 1){
+				img[id.y * dim.x + id.x] = '0';
+			}
+			else {
+				img[id.y * dim.x + id.x] = '.';
+			}
 		}
 	}
 }
-bool intersect_sphere(ray_t *ray, const global sphere_t *objects){
+bool intersect_sphere(ray_t *ray, const global sphere_t *sphere){
+	float3 l = sphere->center - ray->orig;
+	float l_sqr = dot(l, l);
+	float s = dot(l, ray->dir);
+	float r_sqr = pow(sphere->radius, 2);
+
+	if (s < 0 && l_sqr > r_sqr){
+		return false;
+	}
+	float m_sqr = l_sqr - pow(s, 2);
+	if (m_sqr > r_sqr){
+		return false;
+	}
+
+	float q = sqrt(r_sqr - m_sqr);
+	float t = l_sqr > r_sqr ? s - q : s + q;
+	if (t < ray->t){
+		ray->t = t;
+		return true;
+	}	
 	return false;
 }
 

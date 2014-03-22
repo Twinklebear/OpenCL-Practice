@@ -38,9 +38,31 @@ int main(int argc, char **argv){
 	cl_mem mem_ray_start = clCreateBuffer(context, CL_MEM_READ_ONLY,
 		IMG_DIM * IMG_DIM * sizeof(cl_float3), NULL, &err);
 	check_cl_err(err, "failed to create buffer");
+
+	cl_mem mem_spheres = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(sphere_t), NULL, &err);
+	check_cl_err(err, "failed to create buffer");
+
+	cl_mem mem_img = clCreateBuffer(context, CL_MEM_WRITE_ONLY, IMG_DIM * IMG_DIM * sizeof(cl_char),
+		NULL, &err);
+	check_cl_err(err, "failed to create buffer");
+
 	cl_float3 *ray_starts = clEnqueueMapBuffer(queue, mem_ray_start, CL_FALSE, CL_MAP_WRITE,
 		0, IMG_DIM * IMG_DIM * sizeof(cl_float3), 0, NULL, NULL, &err);
+	check_cl_err(err, "failed to create buffer");
+
+	sphere_t *spheres = clEnqueueMapBuffer(queue, mem_spheres, CL_TRUE, CL_MAP_WRITE,
+		0, sizeof(sphere_t), 0, NULL, NULL, &err);
 	check_cl_err(err, "failed to map buffer");
+	spheres[0] = (sphere_t){
+		.center = {{ IMG_DIM / 2, IMG_DIM / 2, 3 }},
+		.radius = 2.9
+	};
+
+	cl_char background = ' ';
+	err = clEnqueueFillBuffer(queue, mem_img, &background, sizeof(cl_char), 0,
+		IMG_DIM * IMG_DIM * sizeof(cl_char), 0, 0, NULL);
+	check_cl_err(err, "failed to fill buffer");
+
 	for (int i = 0; i < IMG_DIM; ++i){
 		for (int j = 0; j < IMG_DIM; ++j){
 			ray_starts[i * IMG_DIM + j].s[0] = i;
@@ -49,8 +71,40 @@ int main(int argc, char **argv){
 		}
 	}
 	clEnqueueUnmapMemObject(queue, mem_ray_start, ray_starts, 0, 0, NULL);
+	clEnqueueUnmapMemObject(queue, mem_spheres, spheres, 0, 0, NULL);
+
+	cl_uint n_objs = 1;
+	cl_uint2 dim = {{ IMG_DIM, IMG_DIM }};
+	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mem_ray_start);
+	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &mem_spheres);
+	err |= clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_objs);
+	err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &mem_img);
+	err |= clSetKernelArg(kernel, 4, sizeof(cl_uint2), &dim);
+	check_cl_err(err, "failed to set one or more kernel args");
+
+	size_t global_size[2] = { IMG_DIM, IMG_DIM };
+	size_t local_size[2] = { 2, 2 };
+	err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_size,
+		local_size, 0, NULL, NULL);
+	check_cl_err(err, "failed to run kernel");
+
+	cl_char *img = clEnqueueMapBuffer(queue, mem_img, CL_TRUE, CL_MAP_READ,
+		0, IMG_DIM * IMG_DIM * sizeof(cl_char), 0, NULL, NULL, &err);
+	check_cl_err(err, "failed to map img buffer");
+
+	for (int i = 0; i < IMG_DIM; ++i){
+		printf("| ");
+		for (int j = 0; j < IMG_DIM; ++j){
+			printf("%c", img[i * IMG_DIM + j]);
+		}
+		printf(" |\n");
+	}
+	clEnqueueUnmapMemObject(queue, mem_img, img, 0, 0, NULL);
+	clFinish(queue);
 
 	clReleaseMemObject(mem_ray_start);
+	clReleaseMemObject(mem_spheres);
+	clReleaseMemObject(mem_img);
 	clReleaseKernel(kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(queue);
