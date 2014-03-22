@@ -11,6 +11,7 @@
 #include "cl_program_dir.h"
 
 #define IMG_DIM 16
+#define N_OBJS 3
 
 typedef struct sphere_t {
 	cl_float3 center;
@@ -39,7 +40,8 @@ int main(int argc, char **argv){
 		IMG_DIM * IMG_DIM * sizeof(cl_float3), NULL, &err);
 	check_cl_err(err, "failed to create buffer");
 
-	cl_mem mem_spheres = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(sphere_t), NULL, &err);
+	cl_mem mem_spheres = clCreateBuffer(context, CL_MEM_READ_ONLY,
+		N_OBJS * sizeof(sphere_t), NULL, &err);
 	check_cl_err(err, "failed to create buffer");
 
 	cl_mem mem_img = clCreateBuffer(context, CL_MEM_WRITE_ONLY, IMG_DIM * IMG_DIM * sizeof(cl_char),
@@ -51,11 +53,19 @@ int main(int argc, char **argv){
 	check_cl_err(err, "failed to create buffer");
 
 	sphere_t *spheres = clEnqueueMapBuffer(queue, mem_spheres, CL_TRUE, CL_MAP_WRITE,
-		0, sizeof(sphere_t), 0, NULL, NULL, &err);
+		0, N_OBJS * sizeof(sphere_t), 0, NULL, NULL, &err);
 	check_cl_err(err, "failed to map buffer");
 	spheres[0] = (sphere_t){
-		.center = {{ IMG_DIM / 2, IMG_DIM / 2, 3 }},
+		.center = {{ IMG_DIM / 2 - 1, IMG_DIM / 2 - 1, 3 }},
 		.radius = 2.9
+	};
+	spheres[1] = (sphere_t){
+		.center = {{ 3, 2, 2 }},
+		.radius = 1.2
+	};
+	spheres[2] = (sphere_t){
+		.center = {{ IMG_DIM - 2, IMG_DIM - 4, 5 }},
+		.radius = 3.5
 	};
 
 	cl_char background = ' ';
@@ -73,7 +83,7 @@ int main(int argc, char **argv){
 	clEnqueueUnmapMemObject(queue, mem_ray_start, ray_starts, 0, 0, NULL);
 	clEnqueueUnmapMemObject(queue, mem_spheres, spheres, 0, 0, NULL);
 
-	cl_uint n_objs = 1;
+	cl_uint n_objs = N_OBJS;
 	cl_uint2 dim = {{ IMG_DIM, IMG_DIM }};
 	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mem_ray_start);
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &mem_spheres);
